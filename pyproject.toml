@@ -4,14 +4,14 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name="gemini-rotate"
-version="0.1.0"
+version="0.1.1"
 description = "A lightweight Python library for Google Gemini API key rotation and model fallback."
 readme = "README.md"
 license = "MIT"
 authors = [
   { name = "Jayed", email = "jayedbinjahangir@gmail.com" }
 ]
-dependencies = ["google-genai", "python-dotenv"]
+dependencies = ["google-genai"]
 requires-python = ">=3.9"
 
 [project.urls]
