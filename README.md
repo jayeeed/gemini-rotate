@@ -141,7 +141,6 @@ if __name__ == "__main__":
 | Parameter | Type | Description |
 | :--- | :--- | :--- |
 | `contents` | `str` \| `list` | The prompt or content to send. |
-| `model` | `str` | (Optional) The specific model to use. Defaults to first in priority list. |
 | `config` | `dict` | (Optional) Generation config (temperature, tools, schema) passed to `google.genai`. |
 
 ## ⚙️ Configuration
@@ -160,16 +159,17 @@ GEMINI_API_KEY_3="AIdf56..."
 GEMINI_MODELS='["gemini-2.5-flash", "gemini-2.5-flash-lite", "gemini-2.0-flash"]'
 ```
 
-*(Note: A single `GEMINI_API_KEY` environment variable is also supported as a fallback, but using the numbered pattern `GEMINI_API_KEY_n` allows for rotation.)*
+*(Note: A single `GEMINI_API_KEY` environment variable is also supported as a fallback. If numbered keys like `GEMINI_API_KEY_1` are present, they are guaranteed to rotate in sequential order.)*
 
 ### 2. Model Priority Breakdown
 You can customize the order in which models are attempted by setting `GEMINI_MODELS` in `.env` as shown above. The string MUST be a valid JSON array. The library processes models in **Primary -> Secondary** pairs.
 
 **Default Behavior (if GEMINI_MODELS is not set):**
 1.  `gemini-flash-latest` -> `gemini-flash-lite-latest`
-2.  `gemini-3-flash-preview` -> `gemini-2.5-flash`
-3.  `gemini-2.5-flash-lite` -> `gemini-2.0-flash`
-4.  `gemini-2.0-flash-lite` -> (None)
+2.  `gemini-3.1-flash-lite-preview` -> `gemini-3-flash-preview`
+3.  `gemini-2.5-flash` -> `gemini-2.5-flash-lite`
+4.  `gemini-2.0-flash` -> `gemini-2.0-flash-lite`
+5.  `gemma-4-26b-a4b-it` -> `gemma-4-31b-it`
 
 **Custom Configuration:**
 ```env
