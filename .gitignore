@@ -2,3 +2,4 @@
 .env
 .venv
 gemini.py
+gemini_rotate.egg-info
