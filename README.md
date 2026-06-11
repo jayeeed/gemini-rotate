@@ -135,8 +135,8 @@ async def generate_recipe():
         print(f"Error: {e}")
 ```
 
-#### 4. LangSmith Tracing Integration (Optional)
-If you have `langsmith` installed, `gemini-rotate` automatically wraps the internal Google GenAI clients using LangSmith's standard Gemini wrapper. This enables automatic tracing of your generated content requests.
+#### 4. LangSmith Tracing Integration
+`gemini-rotate` automatically wraps the internal Google GenAI clients using LangSmith's standard Gemini wrapper. This enables automatic tracing of your generated content requests.
 
 To activate tracing, configure your environment with the standard LangSmith variables:
 ```bash
