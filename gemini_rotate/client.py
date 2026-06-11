@@ -300,6 +300,32 @@ def _calculate_gemini_cost(model: str, input_tokens: int, output_tokens: int) ->
     return (input_tokens * input_rate) + (output_tokens * output_rate)
 
 
+def _inject_cost_serialization(response: Any, cost: float) -> None:
+    if hasattr(response, "model_dump"):
+        try:
+            orig_model_dump = response.model_dump
+            def custom_model_dump(*args, **kwargs):
+                d = orig_model_dump(*args, **kwargs)
+                if "usage_metadata" in d and d["usage_metadata"] is not None:
+                    d["usage_metadata"]["total_cost"] = cost
+                return d
+            object.__setattr__(response, "model_dump", custom_model_dump)
+        except Exception:
+            pass
+
+    if hasattr(response, "dict"):
+        try:
+            orig_dict = response.dict
+            def custom_dict(*args, **kwargs):
+                d = orig_dict(*args, **kwargs)
+                if "usage_metadata" in d and d["usage_metadata"] is not None:
+                    d["usage_metadata"]["total_cost"] = cost
+                return d
+            object.__setattr__(response, "dict", custom_dict)
+        except Exception:
+            pass
+
+
 class GeminiRotationClient:
     def __init__(self, tracing_extra: Any = None):
         self.api_keys = get_gemini_api_keys()
@@ -394,6 +420,15 @@ class GeminiRotationClient:
                                     "total_tokens": total_tokens,
                                     "total_cost": cost,
                                 }
+                                _inject_cost_serialization(response, cost)
+                                run_tree.metadata.update({
+                                    "usage_metadata": {
+                                        "input_tokens": input_tokens,
+                                        "output_tokens": output_tokens,
+                                        "total_tokens": total_tokens,
+                                        "total_cost": cost,
+                                    }
+                                })
                             run_tree.outputs = outputs
                             run_tree.metadata.update({
                                 "succeeded_client": client_id,
@@ -401,6 +436,10 @@ class GeminiRotationClient:
                                 "ls_model_name": primary_model,
                                 "ls_provider": "google",
                             })
+                            try:
+                                run_tree.patch()
+                            except Exception:
+                                pass
                     try:
                         response.__dict__["client_id"] = client_id
                         response.__dict__["model"] = primary_model
@@ -449,6 +488,15 @@ class GeminiRotationClient:
                                             "total_tokens": total_tokens,
                                             "total_cost": cost,
                                         }
+                                        _inject_cost_serialization(response, cost)
+                                        run_tree.metadata.update({
+                                            "usage_metadata": {
+                                                "input_tokens": input_tokens,
+                                                "output_tokens": output_tokens,
+                                                "total_tokens": total_tokens,
+                                                "total_cost": cost,
+                                            }
+                                        })
                                     run_tree.outputs = outputs
                                     run_tree.metadata.update({
                                         "succeeded_client": client_id,
@@ -456,6 +504,10 @@ class GeminiRotationClient:
                                         "ls_model_name": secondary_model,
                                         "ls_provider": "google",
                                     })
+                                    try:
+                                        run_tree.patch()
+                                    except Exception:
+                                        pass
                             try:
                                 response.__dict__["client_id"] = client_id
                                 response.__dict__["model"] = secondary_model
@@ -529,6 +581,15 @@ class GeminiRotationClient:
                                     "total_tokens": total_tokens,
                                     "total_cost": cost,
                                 }
+                                _inject_cost_serialization(response, cost)
+                                run_tree.metadata.update({
+                                    "usage_metadata": {
+                                        "input_tokens": input_tokens,
+                                        "output_tokens": output_tokens,
+                                        "total_tokens": total_tokens,
+                                        "total_cost": cost,
+                                    }
+                                })
                             run_tree.outputs = outputs
                             run_tree.metadata.update({
                                 "succeeded_client": client_id,
@@ -536,6 +597,10 @@ class GeminiRotationClient:
                                 "ls_model_name": primary_model,
                                 "ls_provider": "google",
                             })
+                            try:
+                                run_tree.patch()
+                            except Exception:
+                                pass
                     try:
                         response.__dict__["client_id"] = client_id
                         response.__dict__["model"] = primary_model
@@ -584,6 +649,15 @@ class GeminiRotationClient:
                                             "total_tokens": total_tokens,
                                             "total_cost": cost,
                                         }
+                                        _inject_cost_serialization(response, cost)
+                                        run_tree.metadata.update({
+                                            "usage_metadata": {
+                                                "input_tokens": input_tokens,
+                                                "output_tokens": output_tokens,
+                                                "total_tokens": total_tokens,
+                                                "total_cost": cost,
+                                            }
+                                        })
                                     run_tree.outputs = outputs
                                     run_tree.metadata.update({
                                         "succeeded_client": client_id,
@@ -591,6 +665,10 @@ class GeminiRotationClient:
                                         "ls_model_name": secondary_model,
                                         "ls_provider": "google",
                                     })
+                                    try:
+                                        run_tree.patch()
+                                    except Exception:
+                                        pass
                             try:
                                 response.__dict__["client_id"] = client_id
                                 response.__dict__["model"] = secondary_model
