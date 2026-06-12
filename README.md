@@ -207,16 +207,14 @@ LANGCHAIN_PROJECT="gemini-rotate"
 You can customize the order in which models are attempted by setting `GEMINI_MODELS` in `.env` as shown above. The string MUST be a valid JSON array. The library processes models in **Primary -> Secondary** pairs.
 
 **Default Behavior (if GEMINI_MODELS is not set):**
-1.  `gemini-3.5-flash` -> `gemini-3.1-pro-preview`
-2.  `gemini-3.1-flash-lite` -> `gemini-3.1-flash-lite-preview`
-3.  `gemini-3-flash-preview` -> `gemini-2.5-flash`
-4.  `gemini-2.5-flash-lite` -> `gemini-2.5-pro`
-5.  `gemini-flash-latest` -> `gemini-flash-lite-latest`
-6.  `gemma-4-26b-a4b-it` -> `gemma-4-31b-it`
+1.  `gemini-3.5-flash` -> `gemini-3.1-flash-lite`
+2.  `gemini-3-flash-preview` -> `gemini-2.5-flash`
+3.  `gemini-2.5-flash-lite` -> `gemma-4-26b-a4b-it`
+4.  `gemma-4-31b-it` (no secondary fallback)
 
 **Custom Configuration:**
 ```env
-GEMINI_MODELS='["gemini-2.5-flash", "gemini-2.5-flash-lite", "gemini-2.0-flash"]'
+GEMINI_MODELS='["gemini-3.5-flash", "gemini-3.1-flash-lite", "gemini-3-flash-preview"]'
 ```
 
 ## 🔍 How it Works

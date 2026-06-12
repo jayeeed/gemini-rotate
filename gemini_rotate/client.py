@@ -166,136 +166,45 @@ def _calculate_gemini_cost(model: str, input_tokens: int, output_tokens: int) ->
     """
     model_lower = model.lower()
 
-    # Gemma 4 is free on Google AI Studio
-    if "gemma-4" in model_lower:
-        input_rate = 0.0
-        output_rate = 0.0
-
-    # Gemini 3.5 Flash
-    elif "gemini-3.5-flash" in model_lower:
+    # 1. gemini-3.5-flash
+    if "gemini-3.5-flash" in model_lower:
         input_rate = 1.50 / 1_000_000
         output_rate = 9.00 / 1_000_000
 
-    # Gemini 3.5 Live Translate
-    elif "gemini-3.5-live-translate" in model_lower:
-        input_rate = 3.50 / 1_000_000
-        output_rate = 21.00 / 1_000_000
-
-    # Gemini 3.1 Pro Preview
-    elif "gemini-3.1-pro" in model_lower:
-        if input_tokens <= 200_000:
-            input_rate = 2.00 / 1_000_000
-            output_rate = 12.00 / 1_000_000
-        else:
-            input_rate = 4.00 / 1_000_000
-            output_rate = 18.00 / 1_000_000
-
-    # Gemini 3.1 Flash-Lite
+    # 2. gemini-3.1-flash-lite
     elif "gemini-3.1-flash-lite" in model_lower:
         input_rate = 0.25 / 1_000_000
         output_rate = 1.50 / 1_000_000
 
-    # Gemini 3.1 Flash Live Preview
-    elif "gemini-3.1-flash-live" in model_lower:
-        input_rate = 0.75 / 1_000_000
-        output_rate = 4.50 / 1_000_000
-
-    # Gemini 3.1 Flash Image
-    elif "gemini-3.1-flash-image" in model_lower:
+    # 3. gemini-3-flash-preview
+    elif "gemini-3-flash-preview" in model_lower:
         input_rate = 0.50 / 1_000_000
         output_rate = 3.00 / 1_000_000
 
-    # Gemini 3.1 Flash TTS Preview
-    elif "gemini-3.1-flash-tts" in model_lower:
-        input_rate = 1.00 / 1_000_000
-        output_rate = 20.00 / 1_000_000
-
-    # Gemini 3 Flash Preview
-    elif "gemini-3-flash" in model_lower:
-        input_rate = 0.50 / 1_000_000
-        output_rate = 3.00 / 1_000_000
-
-    # Gemini 3 Pro Image
-    elif "gemini-3-pro-image" in model_lower:
-        input_rate = 2.00 / 1_000_000
-        output_rate = 12.00 / 1_000_000
-
-    # Gemini 2.5 Pro
-    elif "gemini-2.5-pro" in model_lower:
-        if input_tokens <= 200_000:
-            input_rate = 1.25 / 1_000_000
-            output_rate = 10.00 / 1_000_000
-        else:
-            input_rate = 2.50 / 1_000_000
-            output_rate = 15.00 / 1_000_000
-
-    # Gemini 2.5 Computer Use Preview
-    elif "gemini-2.5-computer-use" in model_lower:
-        if input_tokens <= 200_000:
-            input_rate = 1.25 / 1_000_000
-            output_rate = 10.00 / 1_000_000
-        else:
-            input_rate = 2.50 / 1_000_000
-            output_rate = 15.00 / 1_000_000
-
-    # Gemini 2.5 Flash Native Audio
-    elif "gemini-2.5-flash-native-audio" in model_lower:
-        input_rate = 0.50 / 1_000_000
-        output_rate = 2.00 / 1_000_000
-
-    # Gemini 2.5 Flash Image
-    elif "gemini-2.5-flash-image" in model_lower:
-        input_rate = 0.30 / 1_000_000
-        output_rate = 30.00 / 1_000_000
-
-    # Gemini 2.5 Flash Preview TTS
-    elif "gemini-2.5-flash-preview-tts" in model_lower:
-        input_rate = 0.50 / 1_000_000
-        output_rate = 10.00 / 1_000_000
-
-    # Gemini 2.5 Pro Preview TTS
-    elif "gemini-2.5-pro-preview-tts" in model_lower:
-        input_rate = 1.00 / 1_000_000
-        output_rate = 20.00 / 1_000_000
-
-    # Gemini 2.5 Flash
-    elif "gemini-2.5-flash" in model_lower:
+    # 4. gemini-2.5-flash
+    elif "gemini-2.5-flash" in model_lower and "lite" not in model_lower:
         input_rate = 0.30 / 1_000_000
         output_rate = 2.50 / 1_000_000
 
-    # Gemini 2.5 Flash-Lite
+    # 5. gemini-2.5-flash-lite
     elif "gemini-2.5-flash-lite" in model_lower:
         input_rate = 0.10 / 1_000_000
         output_rate = 0.40 / 1_000_000
 
-    # Gemini Robotics Embodied Reasoning
-    elif "gemini-robotics-er" in model_lower:
-        input_rate = 1.00 / 1_000_000
-        output_rate = 5.00 / 1_000_000
+    # 6. gemma-4-26b-a4b-it
+    elif "gemma-4-26b-a4b-it" in model_lower:
+        input_rate = 0.0
+        output_rate = 0.0
 
-    # Gemini 2.0 Flash-Lite (deprecated/shut down)
-    elif "gemini-2.0-flash-lite" in model_lower:
-        input_rate = 0.075 / 1_000_000
-        output_rate = 0.30 / 1_000_000
+    # 7. gemma-4-31b-it
+    elif "gemma-4-31b-it" in model_lower:
+        input_rate = 0.0
+        output_rate = 0.0
 
-    # Gemini 2.0 Flash (deprecated/shut down)
-    elif "gemini-2.0-flash" in model_lower:
-        input_rate = 0.10 / 1_000_000
-        output_rate = 0.40 / 1_000_000
-
-    # Legacy / general / fallback pricing
+    # Fallback default
     else:
         input_rate = 0.075 / 1_000_000
         output_rate = 0.30 / 1_000_000
-        if "lite" in model_lower:
-            input_rate = 0.0375 / 1_000_000
-            output_rate = 0.15 / 1_000_000
-        elif "pro" in model_lower:
-            input_rate = 1.25 / 1_000_000
-            output_rate = 5.00 / 1_000_000
-        elif "gemma" in model_lower:
-            input_rate = 0.0375 / 1_000_000
-            output_rate = 0.15 / 1_000_000
 
     return (input_tokens * input_rate) + (output_tokens * output_rate)
 
