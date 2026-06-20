@@ -438,6 +438,191 @@ class GeminiRotationClient:
         )
 
 
+    @traceable(name="GeminiRotationClient.generate_content_stream", run_type="llm")
+    async def generate_content_stream(
+        self,
+        contents: Any,
+        config: Any = None,
+    ):
+        """
+        Generates content streaming using rotated clients and model pairs.
+        Iterates through models in pairs (Primary, Secondary).
+        For each pair, iterates through all available API keys.
+        """
+        model_groups = [self.models[i : i + 2] for i in range(0, len(self.models), 2)]
+
+        total_groups = len(model_groups)
+
+        for group_idx, group in enumerate(model_groups):
+            primary_model = group[0]
+            secondary_model = group[1] if len(group) > 1 else None
+
+            logger.info(
+                f"Processing Model Group {group_idx + 1}/{total_groups}: Primary='{primary_model}', Secondary='{secondary_model}'"
+            )
+
+            for client_idx, client in enumerate(self.clients):
+                client_id = f"Client-{client_idx + 1}"
+                yielded_any = False
+
+                try:
+                    logger.debug(f"[{client_id}] Attempting Primary Stream: {primary_model}")
+                    actual_config = _apply_default_thinking_config(primary_model, config, contents)
+                    call_kwargs = {}
+                    if actual_config is not None:
+                        call_kwargs["config"] = actual_config
+                    
+                    response_stream = await client.aio.models.generate_content_stream(
+                        model=primary_model, contents=contents, **call_kwargs
+                    )
+                    
+                    full_text = ""
+                    final_usage = None
+                    async for chunk in response_stream:
+                        yielded_any = True
+                        if chunk.text:
+                            full_text += chunk.text
+                        if getattr(chunk, "usage_metadata", None) is not None:
+                            final_usage = chunk.usage_metadata
+                        try:
+                            chunk.__dict__["client_id"] = client_id
+                            chunk.__dict__["model"] = primary_model
+                        except Exception:
+                            pass
+                        try:
+                            chunk.client_id = client_id
+                            chunk.model = primary_model
+                        except Exception:
+                            pass
+                        yield chunk
+                    
+                    if get_current_run_tree is not None:
+                        run_tree = get_current_run_tree()
+                        if run_tree:
+                            outputs = {"output": full_text}
+                            if final_usage:
+                                input_tokens = getattr(final_usage, "prompt_token_count", 0) or 0
+                                output_tokens = getattr(final_usage, "candidates_token_count", 0) or 0
+                                total_tokens = getattr(final_usage, "total_token_count", 0) or 0
+                                cost = _calculate_gemini_cost(primary_model, input_tokens, output_tokens)
+                                outputs["usage_metadata"] = {
+                                    "input_tokens": input_tokens,
+                                    "output_tokens": output_tokens,
+                                    "total_tokens": total_tokens,
+                                    "total_cost": cost,
+                                }
+                                run_tree.metadata.update({
+                                    "usage_metadata": {
+                                        "input_tokens": input_tokens,
+                                        "output_tokens": output_tokens,
+                                        "total_tokens": total_tokens,
+                                        "total_cost": cost,
+                                    }
+                                })
+                            run_tree.outputs = outputs
+                            run_tree.metadata.update({
+                                "succeeded_client": client_id,
+                                "succeeded_model": primary_model,
+                                "ls_model_name": primary_model,
+                                "ls_provider": "google",
+                            })
+                            try:
+                                run_tree.patch()
+                            except Exception:
+                                pass
+                    return
+
+                except (ClientError, ServerError) as e:
+                    if yielded_any:
+                        logger.error(
+                            f"[{client_id}] Primary ({primary_model}) failed mid-stream: {_format_error(e)}"
+                        )
+                        raise
+                    logger.warning(
+                        f"[{client_id}] Primary ({primary_model}) failed to start stream: {_format_error(e)}"
+                    )
+
+                    if secondary_model:
+                        yielded_any = False
+                        try:
+                            logger.debug(
+                                f"[{client_id}] Attempting Secondary Stream: {secondary_model}"
+                            )
+                            actual_config = _apply_default_thinking_config(secondary_model, config, contents)
+                            call_kwargs = {}
+                            if actual_config is not None:
+                                call_kwargs["config"] = actual_config
+                            
+                            response_stream = await client.aio.models.generate_content_stream(
+                                model=secondary_model, contents=contents, **call_kwargs
+                            )
+                            
+                            full_text = ""
+                            final_usage = None
+                            async for chunk in response_stream:
+                                yielded_any = True
+                                if chunk.text:
+                                    full_text += chunk.text
+                                if getattr(chunk, "usage_metadata", None) is not None:
+                                    final_usage = chunk.usage_metadata
+                                try:
+                                    chunk.__dict__["client_id"] = client_id
+                                    chunk.__dict__["model"] = secondary_model
+                                except Exception:
+                                    pass
+                                try:
+                                    chunk.client_id = client_id
+                                    chunk.model = secondary_model
+                                except Exception:
+                                    pass
+                                yield chunk
+                            
+                            if get_current_run_tree is not None:
+                                run_tree = get_current_run_tree()
+                                if run_tree:
+                                    outputs = {"output": full_text}
+                                    if final_usage:
+                                        input_tokens = getattr(final_usage, "prompt_token_count", 0) or 0
+                                        output_tokens = getattr(final_usage, "candidates_token_count", 0) or 0
+                                        total_tokens = getattr(final_usage, "total_token_count", 0) or 0
+                                        cost = _calculate_gemini_cost(secondary_model, input_tokens, output_tokens)
+                                        outputs["usage_metadata"] = {
+                                            "input_tokens": input_tokens,
+                                            "output_tokens": output_tokens,
+                                            "total_tokens": total_tokens,
+                                            "total_cost": cost,
+                                        }
+                                        run_tree.metadata.update({
+                                            "usage_metadata": {
+                                                "input_tokens": input_tokens,
+                                                "output_tokens": output_tokens,
+                                                "total_tokens": total_tokens,
+                                                "total_cost": cost,
+                                            }
+                                        })
+                                    run_tree.outputs = outputs
+                                    run_tree.metadata.update({
+                                        "succeeded_client": client_id,
+                                        "succeeded_model": secondary_model,
+                                        "ls_model_name": secondary_model,
+                                        "ls_provider": "google",
+                                    })
+                                    try:
+                                        run_tree.patch()
+                                    except Exception:
+                                        pass
+                            return
+                        except (ClientError, ServerError) as e2:
+                            if yielded_any:
+                                logger.error(
+                                    f"[{client_id}] Secondary ({secondary_model}) failed mid-stream: {_format_error(e2)}"
+                                )
+                                raise
+                            logger.warning(
+                                f"[{client_id}] Secondary ({secondary_model}) failed to start stream: {_format_error(e2)}"
+                            )
+
+
     @traceable(name="GeminiRotationClient.generate_content_sync", run_type="llm")
     def generate_content_sync(
         self,
@@ -598,3 +783,188 @@ class GeminiRotationClient:
         raise AllClientsFailed(
             f"All {len(self.clients)} agents failed across all {len(self.models)} models."
         )
+
+
+    @traceable(name="GeminiRotationClient.generate_content_stream_sync", run_type="llm")
+    def generate_content_stream_sync(
+        self,
+        contents: Any,
+        config: Any = None,
+    ):
+        """
+        Generates content streaming synchronously using rotated clients and model pairs.
+        Iterates through models in pairs (Primary, Secondary).
+        For each pair, iterates through all available API keys.
+        """
+        model_groups = [self.models[i : i + 2] for i in range(0, len(self.models), 2)]
+
+        total_groups = len(model_groups)
+
+        for group_idx, group in enumerate(model_groups):
+            primary_model = group[0]
+            secondary_model = group[1] if len(group) > 1 else None
+
+            logger.info(
+                f"Processing Model Group {group_idx + 1}/{total_groups}: Primary='{primary_model}', Secondary='{secondary_model}'"
+            )
+
+            for client_idx, client in enumerate(self.clients):
+                client_id = f"Client-{client_idx + 1}"
+                yielded_any = False
+
+                try:
+                    logger.debug(f"[{client_id}] Attempting Primary Stream: {primary_model}")
+                    actual_config = _apply_default_thinking_config(primary_model, config, contents)
+                    call_kwargs = {}
+                    if actual_config is not None:
+                        call_kwargs["config"] = actual_config
+                    
+                    response_stream = client.models.generate_content_stream(
+                        model=primary_model, contents=contents, **call_kwargs
+                    )
+                    
+                    full_text = ""
+                    final_usage = None
+                    for chunk in response_stream:
+                        yielded_any = True
+                        if chunk.text:
+                            full_text += chunk.text
+                        if getattr(chunk, "usage_metadata", None) is not None:
+                            final_usage = chunk.usage_metadata
+                        try:
+                            chunk.__dict__["client_id"] = client_id
+                            chunk.__dict__["model"] = primary_model
+                        except Exception:
+                            pass
+                        try:
+                            chunk.client_id = client_id
+                            chunk.model = primary_model
+                        except Exception:
+                            pass
+                        yield chunk
+                    
+                    if get_current_run_tree is not None:
+                        run_tree = get_current_run_tree()
+                        if run_tree:
+                            outputs = {"output": full_text}
+                            if final_usage:
+                                input_tokens = getattr(final_usage, "prompt_token_count", 0) or 0
+                                output_tokens = getattr(final_usage, "candidates_token_count", 0) or 0
+                                total_tokens = getattr(final_usage, "total_token_count", 0) or 0
+                                cost = _calculate_gemini_cost(primary_model, input_tokens, output_tokens)
+                                outputs["usage_metadata"] = {
+                                    "input_tokens": input_tokens,
+                                    "output_tokens": output_tokens,
+                                    "total_tokens": total_tokens,
+                                    "total_cost": cost,
+                                }
+                                run_tree.metadata.update({
+                                    "usage_metadata": {
+                                        "input_tokens": input_tokens,
+                                        "output_tokens": output_tokens,
+                                        "total_tokens": total_tokens,
+                                        "total_cost": cost,
+                                    }
+                                })
+                            run_tree.outputs = outputs
+                            run_tree.metadata.update({
+                                "succeeded_client": client_id,
+                                "succeeded_model": primary_model,
+                                "ls_model_name": primary_model,
+                                "ls_provider": "google",
+                            })
+                            try:
+                                run_tree.patch()
+                            except Exception:
+                                pass
+                    return
+
+                except (ClientError, ServerError) as e:
+                    if yielded_any:
+                        logger.error(
+                            f"[{client_id}] Primary ({primary_model}) failed mid-stream: {_format_error(e)}"
+                        )
+                        raise
+                    logger.warning(
+                        f"[{client_id}] Primary ({primary_model}) failed to start stream: {_format_error(e)}"
+                    )
+
+                    if secondary_model:
+                        yielded_any = False
+                        try:
+                            logger.debug(
+                                f"[{client_id}] Attempting Secondary Stream: {secondary_model}"
+                            )
+                            actual_config = _apply_default_thinking_config(secondary_model, config, contents)
+                            call_kwargs = {}
+                            if actual_config is not None:
+                                call_kwargs["config"] = actual_config
+                            
+                            response_stream = client.models.generate_content_stream(
+                                model=secondary_model, contents=contents, **call_kwargs
+                            )
+                            
+                            full_text = ""
+                            final_usage = None
+                            for chunk in response_stream:
+                                yielded_any = True
+                                if chunk.text:
+                                    full_text += chunk.text
+                                if getattr(chunk, "usage_metadata", None) is not None:
+                                    final_usage = chunk.usage_metadata
+                                try:
+                                    chunk.__dict__["client_id"] = client_id
+                                    chunk.__dict__["model"] = secondary_model
+                                except Exception:
+                                    pass
+                                try:
+                                    chunk.client_id = client_id
+                                    chunk.model = secondary_model
+                                except Exception:
+                                    pass
+                                yield chunk
+                            
+                            if get_current_run_tree is not None:
+                                run_tree = get_current_run_tree()
+                                if run_tree:
+                                    outputs = {"output": full_text}
+                                    if final_usage:
+                                        input_tokens = getattr(final_usage, "prompt_token_count", 0) or 0
+                                        output_tokens = getattr(final_usage, "candidates_token_count", 0) or 0
+                                        total_tokens = getattr(final_usage, "total_token_count", 0) or 0
+                                        cost = _calculate_gemini_cost(secondary_model, input_tokens, output_tokens)
+                                        outputs["usage_metadata"] = {
+                                            "input_tokens": input_tokens,
+                                            "output_tokens": output_tokens,
+                                            "total_tokens": total_tokens,
+                                            "total_cost": cost,
+                                        }
+                                        run_tree.metadata.update({
+                                            "usage_metadata": {
+                                                "input_tokens": input_tokens,
+                                                "output_tokens": output_tokens,
+                                                "total_tokens": total_tokens,
+                                                "total_cost": cost,
+                                            }
+                                        })
+                                    run_tree.outputs = outputs
+                                    run_tree.metadata.update({
+                                        "succeeded_client": client_id,
+                                        "succeeded_model": secondary_model,
+                                        "ls_model_name": secondary_model,
+                                        "ls_provider": "google",
+                                    })
+                                    try:
+                                        run_tree.patch()
+                                    except Exception:
+                                        pass
+                            return
+                        except (ClientError, ServerError) as e2:
+                            if yielded_any:
+                                logger.error(
+                                    f"[{client_id}] Secondary ({secondary_model}) failed mid-stream: {_format_error(e2)}"
+                                )
+                                raise
+                            logger.warning(
+                                f"[{client_id}] Secondary ({secondary_model}) failed to start stream: {_format_error(e2)}"
+                            )
