@@ -9,7 +9,7 @@ A lightweight Python library for Google Gemini API key rotation, valid model sel
 
 - **✅ Automatic Key Rotation**: Seamlessly rotates through a list of API keys when quota is exhausted (`429`), permission denied (`403`), or any other API error occurs.
 - **🔄 Smart Model Fallback**: Automatically downgrades specific models if server errors (`5xx`) persist.
-- **⚡ Async & Sync Support**: Built on top of the `google-genai` client, offering both `async` (`generate_content`) and `sync` (`generate_content_sync`) methods for high-performance and standard applications.
+- **⚡ Async & Sync Support**: Built on top of the `google-genai` client, offering standard generation (`generate_content`, `generate_content_sync`) and streaming generation (`generate_content_stream`, `generate_content_stream_sync`) methods for high-performance and standard applications.
 - **🛡️ Robust Error Handling**: Implements exponential backoff before rotating keys or switching models.
 - **📝 Concise Logging**: Logs only essential success/failure information (e.g., `400 INVALID_ARGUMENT`) to keep your console clean.
 - **📊 Integrated LangSmith Tracing**: Zero-setup wrapper integration with LangSmith. Automatically traces requests, attributes success to specific API clients and models, and logs accurate pricing and token metadata.
@@ -96,7 +96,51 @@ if __name__ == "__main__":
     generate_text_sync()
 ```
 
-#### 3. Advanced: Tool Calling & Structured Output (Async Example)
+#### 3. Streaming Responses (Async & Sync)
+You can stream responses chunk-by-chunk. If the connection fails *before* yielding the first chunk, the client automatically rotates to the next API key or model fallback. If a failure occurs *mid-stream* (after yielding some chunks), the client raises the error immediately to avoid duplicate outputs.
+
+**Async Streaming:**
+```python
+import asyncio
+from gemini_rotate import GeminiRotationClient
+from dotenv import load_dotenv
+
+load_dotenv()
+
+async def main():
+    client = GeminiRotationClient()
+    try:
+        async for chunk in client.generate_content_stream("Write a short story about space."):
+            print(chunk.text or "", end="", flush=True)
+        print()
+    except Exception as e:
+        print(f"\nError: {e}")
+
+if __name__ == "__main__":
+    asyncio.run(main())
+```
+
+**Sync Streaming:**
+```python
+from gemini_rotate import GeminiRotationClient
+from dotenv import load_dotenv
+
+load_dotenv()
+
+def main():
+    client = GeminiRotationClient()
+    try:
+        for chunk in client.generate_content_stream_sync("Explain gravity in one sentence."):
+            print(chunk.text or "", end="", flush=True)
+        print()
+    except Exception as e:
+        print(f"\nError: {e}")
+
+if __name__ == "__main__":
+    main()
+```
+
+#### 4. Advanced: Tool Calling & Structured Output (Async Example)
 You can pass `tools` and `response_schema` (or `response_mime_type`) via the `config` parameter.
 
 ```python
@@ -135,7 +179,7 @@ async def generate_recipe():
         print(f"Error: {e}")
 ```
 
-#### 4. LangSmith Tracing Integration
+#### 5. LangSmith Tracing Integration
 `gemini-rotate` automatically wraps the internal Google GenAI clients using LangSmith's standard Gemini wrapper. This enables automatic tracing of your generated content requests.
 
 To activate tracing, configure your environment with the standard LangSmith variables:
